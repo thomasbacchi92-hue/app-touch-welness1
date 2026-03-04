@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Admin Chat Network - TOUCH WELNESS</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+  :root { --primary: #0f172a; --accent: #38bdf8; --gold: #fbbf24; --green: #25D366; --bg: #f1f5f9; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; color: #334155; }
+  
+  .sidebar { width: 260px; background: var(--primary); color: white; display: flex; flex-direction: column; padding: 20px; box-shadow: 4px 0 15px rgba(0,0,0,0.1); z-index: 100; flex-shrink:0; overflow-y:auto; }
+  .logo { font-size: 18px; font-weight: 900; color: var(--gold); margin-bottom: 30px; text-align: center; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; }
+  .nav-item { padding: 15px; margin-bottom: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-weight: 600; color: #94a3b8; transition: 0.2s; }
+  .nav-item:hover { background: rgba(255,255,255,0.1); color: white; }
+  .nav-item.active { background: var(--accent); color: var(--primary); }
+
+  .chat-wrapper { display: flex; flex: 1; background: white; margin: 20px; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+  
+  .chat-sidebar { width: 320px; background: #f8fafc; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; flex-shrink:0; }
+  .struct-selector { padding: 20px; background: white; border-bottom: 1px solid #e2e8f0; }
+  .struct-selector select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: bold; outline: none; }
+  
+  .contact-list { overflow-y: auto; flex: 1; }
+  .contact-item { padding: 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: 0.2s; }
+  .contact-item:hover, .contact-item.active { background: white; border-left: 4px solid var(--accent); }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+  
+  .chat-area { flex: 1; display: flex; flex-direction: column; background: #efeae2; position: relative; }
+  .chat-header { background: white; padding: 15px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: var(--primary); }
+  
+  .messages-pane { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .msg-bubble { max-width: 65%; padding: 10px 15px; border-radius: 10px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+  .msg-received { background: white; align-self: flex-start; border-top-left-radius: 0; }
+  .msg-sent { background: #dcfce7; align-self: flex-end; border-top-right-radius: 0; } 
+  .msg-sender { font-size: 11px; font-weight: bold; color: #0284c7; margin-bottom: 3px; display: block; text-transform:capitalize; }
+  .msg-time { font-size: 10px; color: #667781; text-align: right; margin-top: 4px; display: block; }
+  
+  .input-area { background: white; padding: 15px; display: flex; gap: 10px; align-items: center; border-top: 1px solid #e2e8f0; }
+  .chat-input { flex: 1; padding: 15px; border: 1px solid #cbd5e1; border-radius: 20px; outline: none; font-size: 15px; }
+  .send-btn { background: var(--green); color: white; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+  @media (max-width: 768px) { .sidebar { display:none; } .chat-sidebar { width: 100%; } .chat-wrapper { margin: 0; border-radius: 0; flex-direction: column; } .chat-area { display:none; } }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo">ADMIN MASTER</div>
+    <div class="nav-item" onclick="window.location.href='admin.html'"><i class="material-icons-round">arrow_back</i> Torna ad Admin</div>
+    <div class="nav-item active"><i class="material-icons-round">forum</i> Ispettore Chat</div>
+</div>
+
+<div class="chat-wrapper">
+    <div class="chat-sidebar">
+        <div class="struct-selector">
+            <select id="selStruct" onchange="loadStructChats()"><option value="">-- Seleziona Struttura --</option></select>
+        </div>
+        <div class="contact-list" id="contactsList"><div style="padding:20px; text-align:center; color:#64748b">Scegli una struttura per leggere le chat.</div></div>
+    </div>
+    <div class="chat-area" id="chatAreaDiv">
+        <div class="chat-header">
+            <i class="material-icons-round" style="cursor:pointer; display:none" id="mobileBack" onclick="closeChatMobile()">arrow_back</i>
+            <div class="avatar" id="headerAvatar" style="width:40px; height:40px; font-size:18px">?</div>
+            <span id="chatTitle">Seleziona una Chat da ispezionare</span>
+        </div>
+        <div class="messages-pane" id="msgBox">
+            <div style="text-align:center; padding:30px; color:#64748b; font-weight:bold">Pannello di Controllo Messaggistica Direzionale.</div>
+        </div>
+        <div class="input-area" id="inputArea" style="display:none">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Scrivi un messaggio come Direzione..." onkeydown="if(event.key==='Enter') sendMessage()">
+            <button class="send-btn" onclick="sendMessage()"><i class="material-icons-round">send</i></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fbConfig = { apiKey: "AIzaSyCrDuK7SWHdbzrJR-pNpxmRwGnZgV2Dd2Y", authDomain: "touch-welness-massage.firebaseapp.com", databaseURL: "https://touch-welness-massage-default-rtdb.europe-west1.firebasedatabase.app", projectId: "touch-welness-massage" };
+    if (!firebase.apps.length) firebase.initializeApp(fbConfig);
+    const dbRef = firebase.database().ref('MASTER_ADMIN_DB');
+
+    let currentStruct = null; let currentChatType = null; let currentChatId = null; let chatListener = null;
+
+    dbRef.child('structures').once('value', snap => {
+        const sel = document.getElementById('selStruct');
+        const structs = Object.values(snap.val() || {}).filter(s => !s.archived);
+        structs.forEach(s => { sel.innerHTML += `<option value="${s.id}">${s.name}</option>`; });
+    });
+
+    function loadStructChats() {
+        currentStruct = document.getElementById('selStruct').value;
+        const list = document.getElementById('contactsList');
+        if(!currentStruct) { list.innerHTML = "<div style='padding:20px; text-align:center; color:#64748b'>Scegli una struttura.</div>"; return; }
+
+        list.innerHTML = "<div style='padding:20px; text-align:center; color:#64748b'>Analisi database...</div>";
+        document.getElementById('inputArea').style.display = 'none'; document.getElementById('msgBox').innerHTML = "";
+
+        // FIX: Ricerca chat private effettivamente avviate
+        dbRef.child('structures_data').child(currentStruct).child('chats').once('value', snap => {
+            const chats = snap.val() || {};
+            let html = `<div class="contact-item" onclick="openChat('public', 'public', 'Gruppo Struttura Pubblico')"><div class="avatar" style="background:var(--green)"><i class="material-icons-round">groups</i></div><div style="font-weight:bold; color:var(--primary)">Gruppo Pubblico</div></div>`;
+            
+            if(chats.private) {
+                for(let pair in chats.private) {
+                    html += `<div class="contact-item" onclick="openChat('private', '${pair}', '${pair.replace(/_/g, ' ↔ ')}')"><div class="avatar" style="background:#64748b"><i class="material-icons-round">lock</i></div><div style="font-weight:bold; color:var(--primary); text-transform:capitalize; font-size:13px">${pair.replace(/_/g, ' ↔ ').replace(/\./g, ' ')}</div></div>`;
+                }
+            }
+            list.innerHTML = html;
+        });
+    }
+
+    function openChat(type, id, title) {
+        if(window.innerWidth <= 768) { document.querySelector('.chat-sidebar').style.display = 'none'; document.getElementById('chatAreaDiv').style.display = 'flex'; document.getElementById('mobileBack').style.display = 'block'; }
+        
+        document.getElementById('inputArea').style.display = 'flex'; document.getElementById('chatTitle').innerText = title.toUpperCase();
+        document.getElementById('headerAvatar').innerHTML = type === 'public' ? '<i class="material-icons-round">groups</i>' : '<i class="material-icons-round">lock</i>';
+        
+        if(chatListener) chatListener.off(); currentChatType = type; currentChatId = id;
+        const path = type === 'public' ? 'public' : `private/${id}`;
+        
+        chatListener = dbRef.child('structures_data').child(currentStruct).child('chats').child(path);
+        chatListener.on('value', snap => { renderMessages(Object.values(snap.val() || {})); });
+    }
+
+    function renderMessages(msgs) {
+        const box = document.getElementById('msgBox');
+        if(msgs.length === 0) { box.innerHTML = "<div style='text-align:center; color:#94a3b8; padding:20px'>Nessun messaggio in questa chat.</div>"; return; }
+        
+        let html = '';
+        msgs.forEach(m => {
+            const isDirezione = m.sender === "Direzione";
+            const alignClass = isDirezione ? 'msg-sent' : 'msg-received';
+            html += `<div class="msg-bubble ${alignClass}"><span class="msg-sender" style="${isDirezione ? 'color:var(--green)' : ''}">${m.sender}</span>${m.text}<span class="msg-time">${m.date.split(' ')[1]}</span></div>`;
+        });
+        box.innerHTML = html; box.scrollTop = box.scrollHeight;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chatInput'); const text = input.value.trim();
+        if(!text || !currentChatType || !currentStruct) return;
+        const path = currentChatType === 'public' ? 'public' : `private/${currentChatId}`;
+        const msg = { sender: "Direzione", text: text, timestamp: Date.now(), date: new Date().toLocaleString('it-IT') };
+        dbRef.child('structures_data').child(currentStruct).child('chats').child(path).push(msg); input.value = "";
+    }
+    
+    function closeChatMobile() { document.querySelector('.chat-sidebar').style.display = 'flex'; document.getElementById('chatAreaDiv').style.display = 'none'; }
+</script>
+</body>
+</html>
